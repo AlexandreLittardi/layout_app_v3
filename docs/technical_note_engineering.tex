@@ -1,0 +1,417 @@
+% Compile twice: pdflatex -interaction=nonstopmode technical_note_engineering.tex
+% Editable reconstruction of technical_note_VE.pdf with audited revisions.
+% Computer Modern is deliberately left as the default LaTeX font.
+\documentclass[10pt,a4paper]{article}
+\usepackage{amsmath,amssymb,amsfonts,booktabs}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\hypersetup{pdftitle={Photovoltaic Layout and Shading Simulator Formulas},
+ pdfauthor={Alexandre Littardi},hidelinks}
+\newcommand{\src}[1]{\par\noindent{\small\ttfamily Source: \detokenize{#1}}\par}
+\newcommand{\clip}{\operatorname{clip}}
+\newcommand{\remark}[1]{\par\noindent\textbf{Remark.} #1\par}
+\newcommand{\limitation}[1]{\par\noindent\textbf{Model limitation.} #1\par}
+\title{Models and Formulas of the Photovoltaic\\Layout and Shading Simulator\\
+ \large Mathematical Appendix --- Traceability of Source Code Formulas}
+\author{Alexandre Littardi}
+\date{Sept 25, 2026\\[4pt]\small Revised against application code: Sept 28, 2026}
+\begin{document}
+\maketitle
+\begin{abstract}
+This appendix retraces the calculation models implemented in the Python/Tkinter photovoltaic
+layout and shading application. It retains the typography, mathematical notation and section
+structure of the original engineering note, while updating the formulas for dated solar
+simulations, two-pole DC routes, electrical checks and hourly PV/BESS operation.
+All values produced by these models are estimates subject to the stated input and validation
+conditions.
+\end{abstract}
+\newpage
+\begingroup\small\tableofcontents\endgroup
+\newpage
+\section{Notations}
+\begin{table}[h]
+\centering\small
+\begin{tabular}{@{}llp{8.0cm}@{}}
+\toprule
+Symbol & Unit & Meaning\\ \midrule
+$\phi,\lambda$ & $^\circ$ & Latitude north-positive; longitude east-positive\\
+$n,N_y$ & day & Day number; 365 or 366 days in calculation year\\
+$h,u$ & h & Local decimal clock hour; UTC offset\\
+$\gamma,\delta$ & rad & Fractional year angle; declination\\
+$E_t$ & min & Equation of time\\
+$\omega,\alpha,A_s$ & $^\circ$ & Hour angle; solar elevation; azimuth from north clockwise\\
+$\beta,\gamma_p,\theta_i$ & $^\circ$ & Plane tilt; plane azimuth; incidence angle\\
+$G_{\rm DNI},G_{\rm POA}$ & W/m$^2$ & Direct normal and plane-of-array irradiance\\
+$T_c,T_{\rm amb}$ & $^\circ$C & Cell and ambient temperatures\\
+$P_{\rm STC},\mu_P$ & W,\ \%/$^\circ$C & STC module power; power temperature coefficient\\
+$f_s,o$ & -- & Shaded fraction; obstacle opacity, both in $[0,1]$\\
+$L_A,L_B,S,\rho$ & m,m,mm$^2$,$\Omega$\,mm$^2$/m & Positive and negative cable lengths; section; resistivity\\
+$C_{\rm nom},Q$ & kWh & Nominal battery capacity; stored energy\\
+$E_{\rm PV},E_{\rm load}$ & kWh & Hourly AC production and refrigerator demand\\
+\bottomrule
+\end{tabular}
+\caption{Main symbols; additional symbols are defined at their first occurrence.}
+\end{table}
+Trigonometric relations use radians internally; displayed angles are in degrees unless specified.
+Electrical energy is in Wh in the shading simulation and kWh in the hourly AC balance.
+
+\section{Solar Position}
+\src{mixins/shadow_energy.py: _compute_solar_position}
+The position model uses a fractional-year approximation for declination and equation of time.
+The preview with day/month alone uses the representative year 2024. Dated shadow and annual
+simulations use the actual year; the annual Europe/Rome profile uses the UTC offset of each
+individual local hour, including daylight-saving transitions.
+\subsection{Fractional Year Angle}
+\begin{equation}
+\gamma=\frac{2\pi}{N_y}\left(n-1+\frac{h-12}{24}\right),\qquad N_y\in\{365,366\}.
+\end{equation}
+\subsection{Equation of Time}
+\begin{equation}
+\begin{split}
+E_t=229.18(&0.000075+0.001868\cos\gamma-0.032077\sin\gamma\\
+           &-0.014615\cos(2\gamma)-0.040849\sin(2\gamma))\quad[\mathrm{min}].
+\end{split}
+\end{equation}
+\subsection{Solar Declination}
+\begin{equation}
+\begin{split}
+\delta={}&0.006918-0.399912\cos\gamma+0.070257\sin\gamma\\
+&-0.006758\cos(2\gamma)+0.000907\sin(2\gamma)\\
+&-0.002697\cos(3\gamma)+0.001480\sin(3\gamma).
+\end{split}
+\end{equation}
+\subsection{True Solar Time and Hour Angle}
+\begin{align}
+t_{\rm offset}&=E_t+4\lambda-60u &&[\mathrm{min}],\\
+t_{\rm solar}&=60h+t_{\rm offset} &&[\mathrm{min}],\\
+\omega&=\frac{t_{\rm solar}}{4}-180 &&[^\circ].
+\end{align}
+\subsection{Geometric Solar Elevation}
+\begin{equation}
+\alpha_{\rm geo}=\arcsin\!\left(\clip_{[-1,1]}
+(\sin\phi\sin\delta+\cos\phi\cos\delta\cos\omega)\right).
+\end{equation}
+\subsection{Atmospheric Refraction Correction}
+\begin{equation}
+\Delta\alpha_{\rm ref}=
+\begin{cases}
+\displaystyle \frac{1.02}
+{\tan\!\left(\alpha_{\rm geo}+
+    \frac{10.3}{\alpha_{\rm geo}+5.11}\right)}
+&\alpha_{\rm geo}>-0.85^\circ,\\
+0&\text{otherwise}
+\end{cases}
+\quad[\mathrm{arcmin}],
+\end{equation}
+\begin{equation}
+\alpha=\alpha_{\rm geo}+\frac{\Delta\alpha_{\rm ref}}{60}.
+\end{equation}
+The constants and angles inside the refraction tangent are expressed in degrees;
+the implementation converts them to radians before calling trigonometric functions.
+\subsection{Solar Azimuth}
+\begin{equation}
+c_A=\clip_{[-1,1]}\left(
+\frac{\sin\delta-\sin\alpha_{\rm geo}\sin\phi}
+{\cos\alpha_{\rm geo}\cos\phi}\right),
+\end{equation}
+\begin{equation}
+A_s=\begin{cases}360^\circ-\arccos(c_A)&\omega>0,\\
+\arccos(c_A)&\omega\leq0.\end{cases}
+\end{equation}
+\limitation{At a singular zenith/polar denominator, the implementation applies a
+conventional azimuth instead of evaluating the quotient. These position equations are
+approximations, not an ephemeris-grade solar-position algorithm.}
+
+\section{Solar Irradiance on Module Plane}
+\src{mixins/shadow_energy.py: get_clear_sky_poa_irradiance}
+The shadow-study scenario uses a simplified clear-sky sky model:
+$G_{\rm sc}=1367$ W/m$^2$, $\tau=0.7$ and ground albedo $0.20$.
+Imported historical weather, when supplied for the annual energy simulation, replaces
+the clear-sky plane irradiance and supplies hourly ambient temperature for one orientation.
+\subsection{Direct Normal Irradiance}
+\begin{equation}
+m_a=\frac{1}{\sin\alpha},\qquad
+G_{\rm DNI}=
+\begin{cases}
+G_{\rm sc}\,\tau^{m_a^{0.675}}
+&\alpha>0.5^\circ\text{ and }\sin\alpha\geq0.01,\\
+0&\text{otherwise}.
+\end{cases}
+\end{equation}
+\subsection{Angle of Incidence}
+\begin{equation}
+c_i=\clip_{[0,1]}\!
+\left(\sin\alpha\cos\beta+\cos\alpha\sin\beta\cos(A_s-\gamma_p)\right).
+\end{equation}
+\subsection{Direct, Diffuse and Reflected Components}
+\begin{align}
+G_{\rm dir}&=G_{\rm DNI}c_i,\\
+G_{\rm h,diff}&=0.12G_{\rm DNI}\max(0,\sin\alpha),\\
+G_{\rm diff}&=G_{\rm h,diff}\frac{1+\cos\beta}{2},\\
+G_{\rm h}&=G_{\rm DNI}\max(0,\sin\alpha)+G_{\rm h,diff},\\
+G_{\rm alb}&=0.20G_{\rm h}\frac{1-\cos\beta}{2}.
+\end{align}
+\subsection{Total Plane Irradiance}
+\begin{equation}
+G_{\rm POA}=\max(0,G_{\rm dir}+G_{\rm diff}+G_{\rm alb}).
+\end{equation}
+\limitation{The diffuse share is a fixed empirical fraction, and albedo is
+constant. The clear-sky scenario is not a real-weather production guarantee.
+Imported weather is historical input and must represent the selected plane orientation.}
+
+\section{Module Electrical Model}
+\src{mixins/shadow_energy.py: estimate_panel_power_w}
+\subsection{Effective Irradiance and Cell Temperature}
+\begin{equation}
+G_{\rm eff}=G_{\rm POA}(1-f_s),\qquad
+T_c=T_{\rm amb}+(T_{\rm NOCT}-20)\frac{G_{\rm eff}}{800}.
+\end{equation}
+$T_{\rm amb}=20^\circ$C is assumed only for the clear-sky shadow study;
+imported hourly weather supplies $T_{\rm amb}$ where enabled.
+\subsection{Temperature Factor}
+\begin{equation}
+k_T=\max\left(0,1+\frac{\mu_P}{100}(T_c-25)\right).
+\end{equation}
+\subsection{Instantaneous Power}
+\begin{equation}
+P(t)=
+\begin{cases}
+P_{\rm STC}\dfrac{G_{\rm eff}}{1000}\,k_T&G_{\rm eff}>0,\\
+0&\text{otherwise}.
+\end{cases}
+\end{equation}
+\subsection{Energy over One Step}
+For midpoint $t_m=(t_0+t_1)/2$ and $\Delta t$ in hours:
+\begin{align}
+E_{\rm ideal}&=P_{f_s=0}(t_m)\Delta t,\\
+E_{\rm real}&=P_{f_s}(t_m)\Delta t,\\
+E_{\rm loss}&=\max(0,E_{\rm ideal}-E_{\rm real}).
+\end{align}
+\limitation{This is a linear irradiance and temperature power estimate. It does
+not solve a diode I--V equation, diode bypass behaviour or series mismatch.}
+
+\section{Time Integration of Shading Simulation}
+\src{mixins/shadow_simulation.py: run, data_at}
+\begin{equation}
+E_{\rm total}=\sum_{k=1}^{M}P(t_{m,k})\,\Delta t_k,\qquad
+t_{m,k}=\frac{t_{0,k}+t_{1,k}}{2}.
+\end{equation}
+The time step controls the accuracy near sunrise, sunset and abrupt shadow changes.
+\subsection{Aggregation per String}
+\src{mixins/shadow_energy.py: summarize_string_group}
+For the $M_s$ modules of a string:
+\begin{align}
+E_{\rm ideal,string}&=\sum_{j=1}^{M_s}E_{\rm ideal,j},
+&E_{\rm loss,string}&=\sum_{j=1}^{M_s}E_{\rm loss,j},\\
+r_{\rm loss,string}&=100\frac{E_{\rm loss,string}}{E_{\rm ideal,string}},\\
+\Delta_{\rm spread}&=\max_j(r_{\rm loss,j})-\min_j(r_{\rm loss,j}).
+\end{align}
+The last quantity is a shading heterogeneity indicator, not a calculated
+series-string electrical mismatch loss.
+
+\section{Cast Shadow Geometry}
+\src{mixins/shadow_geometry.py: compute_shadow_geometry}
+The simplified obstacle is a vertical mast with a square plan footprint,
+projected separately onto each roof-zone elevation.
+\subsection{Polygon Area}
+\begin{equation}
+A=\frac12\left|\sum_{k=1}^{p}(x_ky_{k+1}-x_{k+1}y_k)\right|.
+\end{equation}
+\subsection{Projection Distance}
+\begin{equation}
+d_{\rm shadow}=\frac{H_{\rm mast}-H_{\rm roof}}{\tan\alpha},
+\quad H_{\rm mast}>H_{\rm roof},\quad \alpha>0.
+\end{equation}
+The footprint is translated opposite to the sun azimuth, accounting for
+the user-defined image north rotation. The convex hull of original and
+translated footprint vertices produces the candidate shadow polygon.
+\subsection{Convex Hull and Polygon Intersection}
+The convex hull is computed with Andrew's monotone-chain procedure, with
+complexity $O(p\log p)$. Intersection with the module rectangle uses successive
+Sutherland--Hodgman clipping against each rectangle edge.
+\subsection{Shaded Module Fraction}
+\begin{equation}
+f_s=\clip_{[0,1]}\left(o\,\frac{A_{\rm intersection}}{A_{\rm module}}\right),
+\qquad s_{\%}=100f_s.
+\end{equation}
+\limitation{A zero or negative height difference, or a sun below the horizon,
+produces no modeled projected shadow. The obstacle geometry and optical
+transparency remain simplified.}
+
+\section{Panel Grid Layout}
+\src{mixins/zone_tools.py: recalculate_zone_grids, zone_rotate_point}
+\subsection{Rows and Columns}
+\begin{equation}
+n_{\rm col}=\left\lfloor\frac Ww\right\rfloor,\qquad
+n_{\rm row}=\left\lfloor\frac Hh\right\rfloor.
+\end{equation}
+These dimensions describe the preliminary rectangular grid before individual
+edits, roof setbacks and actual mounting constraints.
+\subsection{Alignment}
+With $r_x=W-n_{\rm col}w$ and $r_y=H-n_{\rm row}h$:
+\begin{equation}
+o_x\in\{0,r_x/2,r_x\},\qquad o_y\in\{0,r_y/2,r_y\}.
+\end{equation}
+\subsection{Rotation about Each Module Centre}
+\begin{equation}
+\begin{pmatrix}x'\\y'\end{pmatrix}=
+\begin{pmatrix}c_x\\c_y\end{pmatrix}+
+\begin{pmatrix}\cos\theta&-\sin\theta\\\sin\theta&\cos\theta\end{pmatrix}
+\begin{pmatrix}x-c_x\\y-c_y\end{pmatrix}.
+\end{equation}
+
+\section{DC Wiring}
+\src{mixins/two_pole_cables.py: get_two_pole_route}
+\subsection{Two Physical Routes}
+For endpoints $P_1=(x_1,y_1)$ and $P_2=(x_2,y_2)$, a direct
+orthogonal fallback has length
+\begin{equation}
+L_{\rm orth}=|x_2-x_1|+|y_2-y_1|.
+\end{equation}
+The drawn pathway network instead uses shortest paths through a graph
+(Dijkstra). The string's first and last terminals each receive a separate
+route; modeled vertical roof-to-inverter drops and end reserves are included:
+\begin{align}
+L_A&=L_{{\rm roof},A}+|H_A-H_{\rm inv}|+R_A,\\
+L_B&=L_{{\rm roof},B}+|H_B-H_{\rm inv}|+R_B,\qquad
+L_{\rm loop}=L_A+L_B.
+\end{align}
+\limitation{Routes and risers are preliminary estimates until actual cable
+trays, inverter elevation, termination points and inter-module wiring have
+been surveyed. Recalculate routes after editing panel positions or pathways.}
+\subsection{Voltage Drop and Selected Cross-Section}
+\src{mixins/notes_tools.py: calculate_dc_cable_size}
+\begin{align}
+\Delta U_{\rm DC}&=\frac{I\rho(L_A+L_B)}{S},&
+S_{\min}&=\frac{I\rho(L_A+L_B)}{U\varepsilon_{\rm target}/100},\\
+S_{\rm norm}&=\min\{s\in\mathcal S_{\rm norm}:s\geq S_{\min}\},&
+\varepsilon_{\rm actual}&=100\frac{I\rho(L_A+L_B)}{S_{\rm norm}U}.
+\end{align}
+Here $\mathcal S_{\rm norm}=\{1.5,2.5,4,6,10,16,25,35,50,70,95,120,150,185,240\}$
+mm$^2$. In the general-purpose calculator, a specified one-way length $L$
+represents $L_A=L_B=L$, giving $L_{\rm loop}=2L$. The project default
+resistivity is $0.017\ \Omega\,\mathrm{mm}^2/\mathrm m$ and is user-editable.
+\limitation{Voltage drop alone cannot determine conductor acceptability.
+Installation temperature, grouping, ampacity, insulation, DC short-circuit
+capability, earthing and protective-device coordination require separate
+engineering checks.}
+
+\section{Electrical Summary under STC Conditions}
+\src{project_validation.py; detailed_electrical.py}
+\subsection{One String of \texorpdfstring{$N$}{N} Modules in Series}
+\begin{align}
+P_{{\rm dc},s}&=\frac{NP_{\rm STC}}{1000}\ [\mathrm{kWp}],&
+V_{{\rm oc},s}&=NV_{\rm oc},&
+V_{{\rm mpp},s}&=NV_{\rm mpp},\\
+I_{{\rm sc},s}&=I_{\rm sc},&
+I_{{\rm mpp},s}&=I_{\rm mpp}.&&
+\end{align}
+\subsection{Parallel Strings on One MPPT}
+\begin{equation}
+P_{{\rm dc},m}=\sum_{s\in m}P_{{\rm dc},s},\qquad
+I_{{\rm sc},m}=\sum_{s\in m}I_{{\rm sc},s},\qquad
+I_{{\rm mpp},m}=\sum_{s\in m}I_{{\rm mpp},s}.
+\end{equation}
+Strings of unequal series lengths on the same MPPT are flagged for review.
+An interval of string voltages does not demonstrate their electrical
+compatibility; module technology, operating temperature, currents and
+manufacturer input limits must be verified.
+\subsection{Cold Open-Circuit Voltage and Inverter Totals}
+\begin{equation}
+V_{{\rm oc},s}(T_{\min})=NV_{\rm oc,STC}
+\left[1+\frac{\mu_{\rm Voc}}{100}(T_{\min}-25)\right],
+\end{equation}
+\begin{equation}
+P_{{\rm dc},{\rm inv}}=\sum_{s\ {\rm assigned}}P_{{\rm dc},s},\qquad
+I_{{\rm ac},{\rm nominal}}=
+\frac{1000S_{{\rm ac},{\rm kVA}}}{\sqrt3\,U_{\rm LL}}.
+\end{equation}
+The cold-voltage calculation needs the module coefficient and design minimum
+cell temperature. The AC expression assumes three-phase operation and a
+specified line-to-line voltage; it is not a breaker setting.
+The project arrangement uses three hybrid inverters of nominal 125 kW with
+10 MPPT each. Product-specific operating windows and BESS interfaces must
+be confirmed from the exact equipment documentation.
+
+\section{Hourly PV, Refrigerator Load and BESS}
+\src{self_consumption.py; battery_dispatch.py}
+The following AC-side accounting is performed independently for each local
+hour ($\Delta t=1$ h). For the PV-only option, set charge and discharge to zero.
+\subsection{Direct Use and Storage Dispatch}
+\begin{align}
+E_{\rm direct}&=\min(E_{\rm PV},E_{\rm load}),\\
+E_{\rm surplus}&=E_{\rm PV}-E_{\rm direct},&
+E_{\rm deficit}&=E_{\rm load}-E_{\rm direct}.
+\end{align}
+Let $Q\in[Q_{\min},Q_{\max}]$ be stored energy, and let
+$\eta_c=\eta_d=\sqrt{\eta_{\rm roundtrip}}$. At each hour:
+\begin{align}
+E_{\rm charge}&=\min\!\left(E_{\rm surplus},P_c\Delta t,
+                       \frac{Q_{\max}-Q}{\eta_c}\right),\\
+Q'&=Q+\eta_c E_{\rm charge},\\
+E_{\rm discharge}&=\min\!\left(E_{\rm deficit},P_d\Delta t,
+                       (Q'-Q_{\min})\eta_d\right),\\
+Q_{\rm next}&=Q'-\frac{E_{\rm discharge}}{\eta_d}.
+\end{align}
+The default battery is provisionally identified as
+\emph{Deye MC-L522-2H3}, with nominal $C_{\rm nom}=522.496$ kWh per
+cabinet, $Q_{\min}=0.10 C_{\rm nom}$, $Q_{\max}=0.90 C_{\rm nom}$,
+initial $Q=Q_{\min}$ and $\eta_{\rm roundtrip}=0.90$.
+The configured limits $P_c=250$ kW and $P_d=150$ kW are \emph{shared
+plant limits}: two cabinets double energy capacity but do not double power.
+Charging from the grid and resale of discharged battery energy are not modeled.
+\subsection{Grid Import, Export and Curtailment}
+\begin{align}
+E_{\rm grid}&=E_{\rm deficit}-E_{\rm discharge},\\
+E_{\rm export}&=\min(E_{\rm surplus}-E_{\rm charge},
+                    P_{\rm export}\Delta t),\\
+E_{\rm curtailed}&=E_{\rm surplus}-E_{\rm charge}-E_{\rm export},\\
+E_{\rm useful\ self}&=E_{\rm direct}+E_{\rm discharge},\\
+E_{\rm PV\ retained}&=E_{\rm direct}+E_{\rm charge}.
+\end{align}
+The last two totals differ because of battery losses and changes in stored
+energy; they must not be added. Checks on annual aggregates are
+$E_{\rm load}=E_{\rm useful\ self}+E_{\rm grid}$ and
+$E_{\rm PV}=E_{\rm PV\ retained}+E_{\rm export}+E_{\rm curtailed}$.
+The existing grid contract is recorded as 507 kW, and 300 kW export is
+the \emph{requested, not approved} study limit.
+
+\section{Annual Economics and Scenario Comparison}
+\src{battery_dispatch.py; mixins/self_consumption_ui.py}
+Annual energy quantities are sums of the hourly quantities above. Let
+$p_b$ be the purchase price in EUR/kWh and $p_s$ the credit for exported
+energy in EUR/kWh. Then for each scenario $j$:
+\begin{align}
+C_{0}&=p_b E_{{\rm load},\rm annual},\\
+C_j&=p_b E_{{\rm grid},j}-p_s E_{{\rm export},j},\\
+B_j&=C_0-C_j,\\
+T_j&=\begin{cases}K_j/B_j&B_j>0,\\
+\text{undefined}&B_j\leq0.\end{cases}
+\end{align}
+$C_j$ is the \emph{net annual electricity cost} after export credit;
+$B_j$ is the annual benefit relative to buying the entire refrigerator
+demand. For PV only, one battery and two batteries, illustrative upfront
+capital $K_j$ is respectively EUR 250,000, 300,000 and 350,000.
+Evaluate $p_b=0.25$ and $0.32$ EUR/kWh and a specified export tariff in
+the proposed $0.07$--$0.08$ EUR/kWh range. A baseline of EUR 125,000/year
+at EUR 0.25/kWh corresponds to 500,000 kWh/year \emph{only if} the
+metered annual demand confirms that figure. The simple payback $T_j$
+excludes operating expenses, tax, financing, degradation, battery
+replacement and future tariff changes.
+
+\section{Summary of Model Limitations and Required Engineering Checks}
+\begin{itemize}
+\item The default sky is simplified clear sky. Hourly historical weather can
+be imported, but prediction and uncertainty still depend on input quality.
+\item Power scaling and string shading do not simulate diode bypass or I--V
+curves. The spread indicator is diagnostic only.
+\item Inverter count, MPPT allocation, cold $V_{\rm oc}$, hot $V_{\rm mpp}$,
+parallel current and any bifacial contribution need actual datasheets.
+\item Two-pole DC routes include modeled vertical drops and reserves;
+field routing, AC cables, inter-module leads and protection studies remain
+to be completed by the responsible designer.
+\item BESS power and efficiency are configurable assumptions; the listed
+model and interface must be confirmed before procurement. Export at
+300 kW remains subject to grid-operator approval.
+\end{itemize}
+\end{document}
