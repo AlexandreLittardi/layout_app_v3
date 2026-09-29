@@ -67,6 +67,7 @@ class NotesToolsMixin:
         routing = ttk.Menubutton(self.tab_notes, text='🧭 String routes')
         routing_menu = tk.Menu(routing, tearoff=0)
         routing_menu.add_command(label='Calculate / update routes', command=self._calculate_and_show_cable_routes)
+        routing_menu.add_command(label='Installation heights / bridge settings', command=self._show_installation_heights)
         routing_menu.add_command(label='Hide routes on roof', command=self._hide_cable_routes)
         routing_menu.add_separator()
         routing_menu.add_command(label='Export route inventory CSV', command=self._export_cable_routes_csv)
@@ -293,6 +294,8 @@ class NotesToolsMixin:
         self.cable_routes_calculated = True
         self.show_cable_network_routes = bool(summary['ok'])
         self._refresh_cable_route_table(summary)
+        if summary.get('failed') and getattr(self,'_last_route_error',None):
+            messagebox.showwarning('Incomplete cable routes', self._last_route_error)
         self.draw_grid()
 
     def _hide_cable_routes(self):

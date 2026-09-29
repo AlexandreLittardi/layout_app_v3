@@ -363,7 +363,9 @@ class UIBuildersMixin:
         mb_measure = ttk.Menubutton(self.tab_roof, text='📏 Scale and measurements')
         menu_measure = tk.Menu(mb_measure, tearoff=0)
         menu_measure.add_command(label='📏 Draw scale reference', command=self._activate_scale_mode)
-        menu_measure.add_command(label='📐 Measure', command=self._activate_measure_mode)
+        
+        for mode in ('aligned', 'horizontal', 'vertical'):
+            menu_measure.add_command(label=mode.title()+' dimension', command=lambda m=mode:self._activate_dimension(m))
         menu_measure.add_command(label='📏 Measure distance to zone', command=self._toggle_distance_mode)
         menu_measure.add_separator()
         menu_measure.add_command(label='🗑️ Clear measurements', command=self.clear_measures)
@@ -375,7 +377,8 @@ class UIBuildersMixin:
         polygon_menu = tk.Menu(polygons, tearoff=0)
         polygon_menu.add_command(label='➕ Draw cable routing area', command=self._activate_polygon_draw_mode)
         polygon_menu.add_command(label='✅ Finish drawing (right-click)', command=self._finish_polygon_draw)
-        polygon_menu.add_command(label='✋ Select / move area', command=self._activate_polygon_select_mode)
+        polygon_menu.add_command(label='Transform selected area', command=self._activate_polygon_select_mode)
+        polygon_menu.add_command(label='Installation heights / cable bridges', command=self._show_installation_heights)
         polygon_menu.add_separator()
         polygon_menu.add_command(label='🗑️ Delete selected area', command=self.delete_active_polygon)
         polygons['menu'] = polygon_menu
@@ -393,7 +396,8 @@ class UIBuildersMixin:
         mb_zones = ttk.Menubutton(self.tab_roof, text='🔲 Zones')
         menu_zones = tk.Menu(mb_zones, tearoff=0)
         menu_zones.add_command(label='➕ Draw rectangular zone', command=self._activate_zone_mode)
-        menu_zones.add_command(label='✋ Select / move zones', command=self._activate_zone_select_mode)
+        menu_zones.add_command(label='Transform zones', command=self._activate_zone_select_mode)
+        menu_zones.add_command(label='Installation heights', command=self._show_installation_heights)
         menu_zones.add_command(label='🗑️ Delete zone(s)', command=self.delete_active_zone)
         mb_zones["menu"] = menu_zones
         mb_zones.pack(side=tk.LEFT, padx=5)

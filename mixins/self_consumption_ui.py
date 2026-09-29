@@ -29,14 +29,14 @@ class SelfConsumptionMixin:
         for i,((key,value),label) in enumerate(zip(self._bess_defaults.items(),labels),1):
             ttk.Label(frm,text=label).grid(row=i,column=0,sticky='w',pady=3)
             e=ttk.Entry(frm,width=10);e.insert(0,str(value));e.grid(row=i,column=1,padx=6);self.bess_entries[key]=e
-        ttk.Label(frm,text='Grid: contract 507 kW. Export request 300 kW, pending approval.\nShared power limits apply to both 1 and 2 BESS.',wraplength=450).grid(row=7,column=0,columnspan=2,pady=10)
+        ttk.Label(frm,text='Review grid limits under Home > Configuration.\nThese battery values are editable assumptions. Shared power limits apply to both 1 and 2 BESS.',wraplength=450).grid(row=7,column=0,columnspan=2,pady=10)
         ttk.Button(frm,text='Close',command=self._energy_settings_window.withdraw).grid(row=8,column=1,pady=5)
         mb=ttk.Menubutton(tab,text='Data');menu=tk.Menu(mb,tearoff=False)
         for label,cmd in [('Import consumption Excel',self._load_consumption_excel),('Download historical weather',self._download_historical_weather),('Import weather JSON',self._import_historical_weather)]:menu.add_command(label=label,command=cmd)
         mb.configure(menu=menu);mb.pack(side=tk.LEFT,padx=3)
         ttk.Button(tab,text='Calculate 3 options',command=self._calculate_self_consumption).pack(side=tk.LEFT,padx=3)
         result=ttk.Menubutton(tab,text='Results');menu=tk.Menu(result,tearoff=False)
-        for label,cmd in [('Annual / monthly comparison',self._show_self_consumption_result),('Annual chart',self._open_annual_chart),('Hourly chart (24 h)',self._open_hourly_chart),('Economics / export / EMS',self._show_energy_economics),('Export hourly CSV',self._export_self_consumption)]:menu.add_command(label=label,command=cmd)
+        for label,cmd in [('Period / monthly comparison',self._show_self_consumption_result),('Monthly chart',self._open_annual_chart),('Hourly chart (24 h)',self._open_hourly_chart),('Economics / export / EMS',self._show_energy_economics),('Export hourly CSV',self._export_self_consumption)]:menu.add_command(label=label,command=cmd)
         result.configure(menu=menu);result.pack(side=tk.LEFT,padx=3)
         ttk.Button(tab,text='Settings',command=self._show_energy_settings).pack(side=tk.LEFT,padx=3)
         self.self_status=ttk.Label(tab,text='Import consumption to begin.');self.self_status.pack(side=tk.LEFT,padx=5)
@@ -63,6 +63,10 @@ class SelfConsumptionMixin:
 
     def _show_energy_economics(self):
         if not self._require_current_energy():return
+        from energy_economics import covers_full_year
+        if not covers_full_year(self.hourly_consumption_profile):
+            messagebox.showwarning('Complete year required','Payback requires a full year of hourly consumption. The engineering report can still show monetary benefits over the imported period.')
+            return
         summaries=[getattr(self,key,{}) for key in
                    ('self_consumption_summary','bess_summary','two_bess_summary')]
         if (not all(s.get('annual') for s in summaries) or
@@ -241,7 +245,7 @@ class SelfConsumptionMixin:
                                            'method':('historical hourly weather + shading' if weather
                                                      else 'clear-sky estimate + shading')}
             self.energy_source_signature=self._energy_signature()
-            self._show_self_consumption_result()
+            self._refresh_energy_workspace()
         except Exception as exc:
             messagebox.showerror('Self-consumption calculation failed',str(exc))
 
@@ -276,7 +280,7 @@ class SelfConsumptionMixin:
         win.geometry('1000x590')
         pages=ttk.Notebook(win);pages.pack(fill=tk.BOTH,expand=True)
         annual_page=ttk.Frame(pages);monthly_page=ttk.Frame(pages);notes_page=ttk.Frame(pages)
-        for page,label in [(annual_page,'Annual'),(monthly_page,'Monthly'),(notes_page,'Assumptions')]:pages.add(page,text=label)
+        for page,label in [(annual_page,'Imported period'),(monthly_page,'Monthly'),(notes_page,'Assumptions')]:pages.add(page,text=label)
         summary=ttk.Treeview(annual_page,columns=('metric','without','one','two'),show='headings',height=11)
         for key,title,width in [('metric','Metric',320),('without','PV only',245),
                                 ('one','1 BESS 522 kWh',245),('two','2 BESS 522 kWh',245)]:

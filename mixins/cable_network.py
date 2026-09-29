@@ -131,38 +131,38 @@ class CableNetworkMixin:
         câbles, insère un nœud de projection relié aux deux extrémités du
         segment, puis un nœud pour pt relié à cette projection. Retourne la
         clé de nœud représentant pt, ou None si le réseau est vide."""
-        best = None
-        for path in self.cable_paths:
-            pts = [tuple(p) for p in path.get("points", [])]
-            for i in range(len(pts) - 1):
-                a, b = pts[i], pts[i + 1]
-                nx, ny, dist = self._nearest_point_on_segment(pt[0], pt[1], a[0], a[1], b[0], b[1])
-                if best is None or dist < best[0]:
-                    best = (dist, (nx, ny), a, b)
-
-        if best is None:
-            return None
-
-        _, proj, a, b = best
-        proj_key = (round(proj[0], 2), round(proj[1], 2))
-        a_key = (round(a[0], 2), round(a[1], 2))
-        b_key = (round(b[0], 2), round(b[1], 2))
-
-        graph.setdefault(proj_key, [])
-        for other_key, other_pt in ((a_key, a), (b_key, b)):
-            if other_key in graph:
-                w = math.hypot(proj[0] - other_pt[0], proj[1] - other_pt[1])
-                graph[proj_key].append((other_key, w))
-                graph[other_key].append((proj_key, w))
-
-        pt_key = (round(pt[0], 4), round(pt[1], 4))
-        if pt_key == proj_key:
-            return proj_key
-
-        w = math.hypot(pt[0] - proj[0], pt[1] - proj[1])
-        graph.setdefault(pt_key, []).append((proj_key, w))
-        graph[proj_key].append((pt_key, w))
-        return pt_key
+        # Split the CURRENT graph edge so two terminals projected on the same
+        # tray can take the direct interval between them, not a detour to an end.
+        original_segments=[(tuple(a),tuple(b)) for path in self.cable_paths
+                           for a,b in zip(path.get('points',[]),path.get('points',[])[1:])]
+        best=None
+        for a,neighbors in list(graph.items()):
+            for b,_ in neighbors:
+                if a>=b:continue
+                on_tray=any(self._nearest_point_on_segment(*a,*u,*v)[2]<.02 and
+                            self._nearest_point_on_segment(*b,*u,*v)[2]<.02
+                            for u,v in original_segments)
+                if not on_tray:continue
+                nx,ny,dist=self._nearest_point_on_segment(pt[0],pt[1],*a,*b)
+                if best is None or dist<best[0]:best=(dist,(nx,ny),a,b)
+        if best is None:return None
+        _,projection,a,b=best
+        key=(round(projection[0],4),round(projection[1],4))
+        # Reuse the exact graph endpoint when the projection coincides with it.
+        if math.dist(key,a)<1e-3:key=a
+        elif math.dist(key,b)<1e-3:key=b
+        if key not in (a,b):
+            graph[a]=[(n,w) for n,w in graph[a] if n!=b]
+            graph[b]=[(n,w) for n,w in graph[b] if n!=a]
+            graph.setdefault(key,[])
+            for end in (a,b):
+                distance=math.dist(key,end)
+                graph[key].append((end,distance));graph[end].append((key,distance))
+        terminal=(round(pt[0],4),round(pt[1],4))
+        if terminal!=key:
+            distance=math.dist(terminal,key)
+            graph.setdefault(terminal,[]).append((key,distance));graph[key].append((terminal,distance))
+        return terminal
 
     @staticmethod
     def _dijkstra(graph, start, end):

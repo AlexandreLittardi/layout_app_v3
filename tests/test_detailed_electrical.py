@@ -23,7 +23,8 @@ class DetailedElectricalTests(unittest.TestCase):
         self.assertEqual([b['id'] for b in model['inverters']],['INV1','INV2','INV3'])
         self.assertEqual(model['battery'][0]['links'],['INV1','INV2'])
         self.assertNotIn('INV3',model['battery'][0]['links'])
-        self.assertAlmostEqual(sum(line['route']['loop_length_m'] for line in model['lines']),4341.42,places=1)
+        # Legacy route lengths use Shadow heights and are intentionally invalidated in R10.
+        self.assertTrue(all(line['route'] is None for line in model['lines']))
         for row in model['lines']:
             self.assertEqual(row['mppt'],self.project['string_mppt_assignment'][row['id']]['mppt'])
             self.assertTrue(row['voc_stc_v'] and row['vmp_stc_v'])

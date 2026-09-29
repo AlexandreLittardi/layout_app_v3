@@ -65,21 +65,21 @@ def sync_diagram(data):
         for m in range(1, int(spec.get('mppt_count', 1))+1):
             mppt = f'mppt::{block}::{m}'
             desired.add(mppt)
-            nodes[mppt] = dict(old.get(mppt, {'x':400, 'y':y}), type='mppt', label=f'MPPT {m}')
+            nodes[mppt] = dict(old.get(mppt, {'x':520, 'y':y}), type='mppt', label=f'MPPT {m}')
             strings = [sid for sid, a in data.get('string_mppt_assignment', {}).items()
                        if a.get('block') == block and a.get('mppt') == m and data.get('strings', {}).get(sid)]
             for sid in sorted(strings, key=natural):
                 ident = 'str::'+sid
                 desired.add(ident)
-                nodes[ident] = dict(old.get(ident, {'x':125, 'y':y}), type='string',
+                nodes[ident] = dict(old.get(ident, {'x':160, 'y':y}), type='string',
                                     label=f'{sid} ({len(data["strings"][sid])} panels)')
                 links.append({'a':ident, 'b':mppt, 'auto':True})
-                y += 65
+                y += 155
             links.append({'a':mppt, 'b':inv, 'auto':True})
-            y += 70
+            y += 155
         desired.add(inv)
-        nodes[inv] = dict(old.get(inv, {'x':675, 'y':(top+y)/2}), type='inverter', label=block)
-        y += 50
+        nodes[inv] = dict(old.get(inv, {'x':880, 'y':(top+y)/2}), type='inverter', label=block)
+        y += 100
     for sid, members in data.get('strings', {}).items():
         if members and 'str::'+sid not in desired:
             ident='str::'+sid;desired.add(ident)

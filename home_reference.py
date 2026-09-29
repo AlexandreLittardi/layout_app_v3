@@ -1,17 +1,6 @@
 """User-facing, code-audited guide. Equations are Matplotlib mathtext strings."""
 
-WORKFLOWS = [
-    ('Home', 'Open and save a JSON project, import its roof photograph and reopen recent projects. The history is stored locally with the last opening time.'),
-    ('Installation area', 'Calibrate the roof image against a measured distance. Draw roof zones and cable routing areas; measure distances and edit zone dimensions.'),
-    ('Layout and blocks', 'Set module dimensions, tilt and azimuth. Generate panels, create blocks, assign panels, and place an inverter for each block.'),
-    ('Stringing', 'Create and edit ordered strings. Select a string to reveal its module identifiers; short badges identify string starts.'),
-    ('MPPT assignment', 'Configure MPPT counts and string input limits for each inverter. Assign strings and inspect the assignment tree.'),
-    ('Shadow', 'Place and configure the obstacle and roof heights. Compare estimated irradiance and shading with a multi-day simulation.'),
-    ('Spreadsheet', 'Use formulas and project variables, select a cell range, and drag the fill handle to copy or extend formulas.'),
-    ('Electrical single-line diagram', 'Inspect PV strings, MPPTs and inverters. Site wiring opens the editable DC/BAT/AC schedule and exports an SVG schematic and CSV inventory.'),
-    ('Cabling', 'Draw preferential cable paths, calculate both DC conductors (A and B), review routes and estimate DC voltage drop. Check ampacity separately.'),
-    ('Energy / BESS', 'Import hourly consumption, optionally import historical weather, then compare PV alone with one or two 522 kWh cabinets and review monthly/hourly energy and economics.'),
-]
+from user_guide import WORKFLOWS
 
 # Each group contains a concise explanation and display math. All variables are
 # named in the accompanying prose; no formula is presented as a compliance check.
@@ -40,9 +29,9 @@ FORMULAS = [
         (r'Spread=\max_j(r_{loss,j})-\min_j(r_{loss,j})', 'Difference between the most and least affected modules of one string; a mismatch indicator only.'),
         (r'A=\frac{1}{2}\left|\sum_{i=1}^{p}(x_i y_{i+1}-x_{i+1}y_i)\right|', 'Shoelace area for a simple polygon; its intersection with a panel is obtained through polygon clipping.'),
         (r'd=\frac{H_{obstacle}-H_{roof}}{\tan\alpha},\quad f_s=\min\left(1,\frac{A_{intersection}}{A_{panel}}o\right)', 'Shadow length at positive elevation and positive height difference; o is obstacle opacity in [0,1].'),
-        (r'n_{col}=\left\lfloor\frac{W}{w}\right\rfloor,\quad n_{row}=\left\lfloor\frac{H}{h}\right\rfloor', 'Panel grid before user edits; alignment uses residual width/height, and rotation acts about each panel centre.'),
+        (r'n_{col}=\left\lfloor\frac{W}{w}\right\rfloor,\quad n_{row}=\left\lfloor\frac{H}{h}\right\rfloor', 'Grid in local coordinates of the inverse-rotated zone bounds; alignment uses residual width/height. The lattice rotates rigidly about the zone centre; incomplete boundary cells are discarded.'),
         (r'o_x\in\{0,(W-n_{col}w)/2,W-n_{col}w\},\quad o_y\in\{0,(H-n_{row}h)/2,H-n_{row}h\}', 'Left/centre/right and top/centre/bottom alignment of the residual clearance.'),
-        (r'x\prime=c_x+(x-c_x)\cos\theta-(y-c_y)\sin\theta', 'Rotation of x around each panel centre.'),
+        (r'x\prime=c_x+(x-c_x)\cos\theta-(y-c_y)\sin\theta', 'Rotation of x around the installation zone centre.'),
         (r'y\prime=c_y+(x-c_x)\sin\theta+(y-c_y)\cos\theta', 'Rotation of y. The convex hull and polygon clipping use Andrew and Sutherland–Hodgman algorithms.'),
     ]),
     ('Strings, routing and voltage drop', 'N modules in series multiply voltage but retain module current. Parallel MPPT strings add currents; unlike a loose voltage interval, differing string voltages need an explicit mismatch check. Routes A and B are separate physical conductor paths.', [
@@ -58,3 +47,8 @@ FORMULAS = [
 
 from energy_reference import ENERGY_FORMULAS
 FORMULAS.extend(ENERGY_FORMULAS)
+
+FORMULAS.append(('Installation routing', 'Installation elevations are independent of Shadow. Orthogonal height steps are evaluated at every crossed surface boundary.', [
+    (r'L_{pole}=\sum_i\sqrt{\Delta x_i^2+\Delta y_i^2}+\sum_j|\Delta z_j|+L_{reserve}', 'Distances are in metres. Gaps up to the configured bridge threshold retain the upstream elevation; longer unsupported spans use ground level.'),
+    (r'L_{loop}=L_A+L_B', 'A and B start at opposite ends of the string. Inter-module wiring and AC wiring are excluded.'),
+]))

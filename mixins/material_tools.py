@@ -271,20 +271,20 @@ class MaterialToolsMixin:
         self.side_panel_material = ttk.Frame(self.main_container, width=420, padding=5)
 
         explorer = ttk.LabelFrame(self.side_panel_material, text='🔎 Variable explorer', padding=5)
-        explorer.pack(fill=tk.X, pady=(0, 7))
+        explorer.pack(fill=tk.BOTH, expand=True, pady=(0, 7))
         search_row = ttk.Frame(explorer)
         search_row.pack(fill=tk.X, pady=(0, 4))
         self.variable_search = tk.StringVar()
         ttk.Entry(search_row, textvariable=self.variable_search).pack(side=tk.LEFT, fill=tk.X, expand=True)
         ttk.Button(search_row, text='Insert', command=self._insert_selected_variable).pack(side=tk.LEFT, padx=4)
         tree_frame = ttk.Frame(explorer)
-        tree_frame.pack(fill=tk.X)
+        tree_frame.pack(fill=tk.BOTH, expand=True)
         self.variable_tree = ttk.Treeview(tree_frame, columns=('value',), show='tree headings', height=9)
         self.variable_tree.heading('#0', text='Formula variable')
         self.variable_tree.heading('value', text='Current value')
         self.variable_tree.column('#0', width=210, minwidth=120)
         self.variable_tree.column('value', width=120, minwidth=70, anchor='e')
-        self.variable_tree.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.variable_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         tree_scroll = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=self.variable_tree.yview)
         self.variable_tree.configure(yscrollcommand=tree_scroll.set)
         tree_scroll.pack(side=tk.RIGHT, fill=tk.Y)
@@ -294,10 +294,11 @@ class MaterialToolsMixin:
         ttk.Label(explorer, text='Double-click a variable to insert it in the selected spreadsheet cell.',
                   wraplength=390, foreground='#546E7A').pack(anchor='w', pady=(4, 0))
 
-        ttk.Label(self.side_panel_material, text='Project equipment sheets',
-                  font=('Arial', 10, 'bold')).pack(pady=(0, 5))
-
-        self.material_notebook = ttk.Notebook(self.side_panel_material)
+        self._equipment_window = tk.Toplevel(self.root)
+        self._equipment_window.title('Project equipment configuration')
+        self._equipment_window.withdraw()
+        self._equipment_window.protocol('WM_DELETE_WINDOW', self._equipment_window.withdraw)
+        self.material_notebook = ttk.Notebook(self._equipment_window)
         self.material_notebook.pack(fill=tk.BOTH, expand=True)
 
         self.material_grids = {}         # clé -> frame interne de la grille (scrollable)

@@ -1,11 +1,11 @@
 # CODEMAP (généré par tools/gen_codemap.py, ne pas éditer à la main)
 Utilisation : lis cette carte AVANT d'explorer. Lis ensuite uniquement la plage de lignes utile.
 
-### app.py (299 lignes)
+### app.py (305 lignes)
 Classe principale de l'application : assemble tous les mixins et contient
-Imports internes : constants, mixins.cable_network, mixins.canvas_grid, mixins.detailed_electrical_ui, mixins.diagram_tools, mixins.equipment_tools, mixins.hourly_chart_ui, mixins.inverter_tools, mixins.material_tools, mixins.notes_tools, mixins.paths_tools, mixins.project_integrity, mixins.project_io, mixins.responsive_ui, mixins.self_consumption_ui, mixins.shadow_tools, mixins.spreadsheet_interactions, mixins.spreadsheet_tools, mixins.stringing_tools, mixins.two_pole_cables, mixins.ui_builders, mixins.workspace_improvements, mixins.zone_tools
-- **class PVLayoutRibbonApp** L39-295
-  - `__init__(root)` L63-295
+Imports internes : constants, mixins.cable_network, mixins.canvas_grid, mixins.detailed_electrical_ui, mixins.diagram_tools, mixins.editor_interactions, mixins.equipment_tools, mixins.hourly_chart_ui, mixins.installation_geometry, mixins.inverter_tools, mixins.material_tools, mixins.notes_tools, mixins.paths_tools, mixins.project_integrity, mixins.project_io, mixins.project_workspace, mixins.responsive_ui, mixins.self_consumption_ui, mixins.shadow_tools, mixins.spreadsheet_interactions, mixins.spreadsheet_tools, mixins.stringing_tools, mixins.two_pole_cables, mixins.ui_builders, mixins.workspace_improvements, mixins.zone_tools
+- **class PVLayoutRibbonApp** L42-301
+  - `__init__(root)` L69-301
 
 ### battery_dispatch.py (147 lignes)
 Dispatch orario AC del BESS: solo surplus FV, senza ricarica da rete.
@@ -31,17 +31,44 @@ Constantes : HYBRID_MODEL, BESS_MODEL
 - `build_detailed_model(project, saved_design)` L73-211
 - `write_detailed_svg(model, path)` L214-322 — Produce a readable vector drawing and wiring schedule with per-field open items.
 
-### energy_economics.py (65 lignes)
+### energy_charts.py (24 lignes)
+Comparable AC energy charts. Never mix battery charging with useful load supply.
+- `comparison_figure(summaries)` L5-24
+
+### energy_economics.py (76 lignes)
 Value useful PV and grid exports without double-counting battery charging.
 Constantes : DEFAULTS
 - `validate_settings(settings)` L13-23
 - `evaluate_options(annuals, settings)` L25-51
 - `write_economic_csv(path, rows)` L53-57
 - `storage_margin_per_charge_kwh(settings, round_trip_efficiency)` L59-65 — Gross incremental value per kWh charged and later used by the load.
+- `covers_full_year(profile)` L68-76 — A complete anniversary-to-anniversary load period, including leap years.
 
-### home_reference.py (65 lignes)
+### energy_reference.py (47 lignes)
+Engineering documentation of the Energy / BESS implementation, in English.
+Constantes : ENERGY_FORMULAS
+
+### engineering_report.py (265 lignes)
+Desktop engineering report: current inputs, explicit omissions, PDF and LaTeX.
+Imports internes : energy_charts, energy_economics, home_reference, project_validation
+Constantes : MISSING
+- `scalar(value)` L18-22
+- `report_content(app, assets)` L25-189
+- `export_report(app, path)` L192-244
+- `write_latex(path, blocks, project)` L247-265
+
+### geometry_layout.py (96 lignes)
+Shared, unit-neutral rigid layout geometry and installation cable elevations.
+- `rotate(point, centre, degrees)` L5-9
+- `inside(point, polygon)` L12-22
+- `grid_spec(zone, width, height, scale)` L25-35
+- `route_elevation(points, surfaces, scale, inverter_height, reserve, bridge_gap)` L38-86 — Split each planar segment at surface edges. Orthogonal height steps.
+- `polygons_overlap(a, b)` L89-96 — Strict overlap of convex panels; shared edges are allowed.
+
+### home_reference.py (54 lignes)
 User-facing, code-audited guide. Equations are Matplotlib mathtext strings.
-Constantes : WORKFLOWS, FORMULAS
+Imports internes : energy_reference, user_guide
+Constantes : FORMULAS
 
 ### main.py (16 lignes)
 Point d'entree de l'application Aide au Layout et Stringing PV.
@@ -74,10 +101,10 @@ Constantes : _NET_ROUTE_COLORS, _GRID_NEIGHBORS, _MAX_GRID_DIM
   - `_activate_gather_point_mode()` L576-581
   - `_reset_gather_points()` L583-595 — Repasse toutes les zones en calcul automatique du point de
 
-### mixins/canvas_grid.py (1363 lignes) ⚠ GROS FICHIER : ne pas lire en entier, utiliser les plages de lignes
+### mixins/canvas_grid.py (1356 lignes) ⚠ GROS FICHIER : ne pas lire en entier, utiliser les plages de lignes
 Interactions souris sur le canvas et dessin de la grille de panneaux.
 Imports internes : constants
-- **class CanvasGridMixin** L22-1359
+- **class CanvasGridMixin** L22-1352
   - `on_left_press(event)` L23-249
   - `on_left_drag(event)` L251-358
   - `on_left_release(event)` L360-482
@@ -93,13 +120,13 @@ Imports internes : constants
   - `_get_grid_bounds()` L653-660
   - `_get_string_display_color(string_id, color)` L662-706 — Retourne la couleur d'affichage d'une string selon le toggle de focus (Onglet St…
   - `_is_inactive_string_dimmed(string_id)` L708-714 — Indique si une string doit être visuellement grisée.
-  - `draw_grid()` L716-1263
-  - `_set_layout_orientation_entries(tilt, azimuth)` L1265-1268
-  - `apply_panel_orientation()` L1270-1288
-  - `_update_stats_display()` L1290-1309
-  - `center_view_on_origin()` L1311-1317
-  - `_get_cell_coords(event)` L1319-1356
-  - `_get_active_tab_index()` L1358-1359
+  - `draw_grid()` L716-1256
+  - `_set_layout_orientation_entries(tilt, azimuth)` L1258-1261
+  - `apply_panel_orientation()` L1263-1281
+  - `_update_stats_display()` L1283-1302
+  - `center_view_on_origin()` L1304-1310
+  - `_get_cell_coords(event)` L1312-1349
+  - `_get_active_tab_index()` L1351-1352
 
 ### mixins/detailed_electrical_ui.py (287 lignes)
 Editable engineering schedule for the active PV project; compact toolbar entry.
@@ -109,28 +136,40 @@ Imports internes : detailed_electrical, project_validation
   - `_export_detailed_electrical_svg()` L25-35
   - `_show_detailed_electrical_editor()` L37-287
 
-### mixins/diagram_tools.py (562 lignes) ⚠ GROS FICHIER : ne pas lire en entier, utiliser les plages de lignes
+### mixins/diagram_tools.py (549 lignes) ⚠ GROS FICHIER : ne pas lire en entier, utiliser les plages de lignes
 Onglet Schéma Unifilaire : génère automatiquement un schéma
 Imports internes : single_line_516
 Constantes : NODE_COLORS, NODE_W, NODE_H, LINK_STYLES
-- **class DiagramToolsMixin** L28-562
-  - `_build_tab_diagram_tools()` L33-84
-  - `_build_side_panel_diagram()` L90-112
-  - `_export_site_single_line(batteries, language)` L118-152 — Rebuild the site topology from the CURRENT project, not a saved image.
-  - `generate_diagram_auto()` L154-241
-  - `_add_custom_diagram_node()` L247-275
-  - `_toggle_diagram_link_mode(style)` L277-286
-  - `_cancel_diagram_link_mode()` L288-291
-  - `_edit_diagram_electrical_specs()` L293-376 — Record STC module ratings and an optional nominal inverter AC rating.
-  - `_toggle_diagram_electrical()` L378-384
-  - `_diagram_node_metric_lines(node_id)` L386-418 — Calculate STC DC ratings using each string's actual number of modules.
-  - `_delete_selected_diagram_node()` L420-431
-  - `_hit_test_diagram_node(cx, cy)` L433-441
-  - `_diagram_node_size(node_id)` L443-445
-  - `_on_diagram_list_select(event)` L447-453
-  - `_refresh_diagram_list()` L455-462
-  - `_get_string_length_m(sid)` L464-475 — Longueur cumulée (en m) du câblage d'une string, panneau à panneau.
-  - `_draw_diagram()` L481-562
+- **class DiagramToolsMixin** L28-549
+  - `_build_tab_diagram_tools()` L33-71
+  - `_build_side_panel_diagram()` L77-99
+  - `_export_site_single_line(batteries, language)` L105-139 — Rebuild the site topology from the CURRENT project, not a saved image.
+  - `generate_diagram_auto()` L141-228
+  - `_add_custom_diagram_node()` L234-262
+  - `_toggle_diagram_link_mode(style)` L264-273
+  - `_cancel_diagram_link_mode()` L275-278
+  - `_edit_diagram_electrical_specs()` L280-363 — Record STC module ratings and an optional nominal inverter AC rating.
+  - `_toggle_diagram_electrical()` L365-371
+  - `_diagram_node_metric_lines(node_id)` L373-405 — Calculate STC DC ratings using each string's actual number of modules.
+  - `_delete_selected_diagram_node()` L407-418
+  - `_hit_test_diagram_node(cx, cy)` L420-428
+  - `_diagram_node_size(node_id)` L430-432
+  - `_on_diagram_list_select(event)` L434-440
+  - `_refresh_diagram_list()` L442-449
+  - `_get_string_length_m(sid)` L451-462 — Longueur cumulée (en m) du câblage d'une string, panneau à panneau.
+  - `_draw_diagram()` L468-549
+
+### mixins/editor_interactions.py (88 lignes)
+Explicit desktop editor gestures, without left-button canvas panning conflicts.
+Imports internes : mixins.canvas_grid
+- **class EditorInteractionsMixin** L4-88
+  - `on_left_press(event)` L5-36
+  - `on_left_drag(event)` L38-55
+  - `on_left_release(event)` L57-66
+  - `_on_diagram_list_select(event)` L68-70
+  - `_delete_selected_diagram_node()` L72-76
+  - `draw_grid()` L78-84
+  - `_on_zone_combo_selected(event)` L86-88
 
 ### mixins/equipment_tools.py (457 lignes)
 Gestion des equipements et repartition des strings dans les MPPT.
@@ -156,12 +195,27 @@ Imports internes : project_validation
   - `_on_equip_tree_press(event)` L425-427
   - `_on_equip_tree_release(event)` L429-453
 
-### mixins/hourly_chart_ui.py (171 lignes)
-Grafico 24 ore interattivo: FV, domanda, fonte dei carichi e SOC.
+### mixins/hourly_chart_ui.py (172 lignes)
+Interactive 24-hour PV, demand, load supply and battery SOC chart.
 Imports internes : battery_dispatch, self_consumption
-- **class HourlyChartMixin** L10-171
+- **class HourlyChartMixin** L10-172
   - `_open_annual_chart()` L11-44
-  - `_open_hourly_chart()` L46-171
+  - `_open_hourly_chart()` L46-172
+
+### mixins/installation_geometry.py (118 lignes)
+Installation transforms, common panel geometry, dimensions and elevations.
+Imports internes : geometry_layout
+- **class InstallationGeometryMixin** L7-118
+  - `_recalculate_zone_grids()` L8-14
+  - `_zone_rotate_rect(zone, x1, y1, x2, y2)` L16-20
+  - `_valid_zone_cell(zone, r, c)` L22-28
+  - `_get_panel_physical_center(coord)` L30-33
+  - `_get_cell_coords(event)` L35-44
+  - `generate_panels_from_zones()` L46-62
+  - `_show_installation_heights()` L64-91
+  - `_activate_dimension(mode)` L93-94
+  - `_draw_dimension(measure, zoom)` L96-107
+  - `_layout_issues()` L109-118
 
 ### mixins/inverter_tools.py (245 lignes)
 Placement physique des onduleurs sur le plan (Onglet Layout & Blocs).
@@ -175,7 +229,7 @@ Imports internes : mixins.material_tools
   - `assign_strings_to_inverters()` L159-219 — Affecte séquentiellement les strings aux MPPT des onduleurs.
   - `_draw_inverters(zoom)` L225-245 — Dessine un marqueur pour chaque onduleur placé. Appelé depuis draw_grid()
 
-### mixins/material_tools.py (693 lignes) ⚠ GROS FICHIER : ne pas lire en entier, utiliser les plages de lignes
+### mixins/material_tools.py (694 lignes) ⚠ GROS FICHIER : ne pas lire en entier, utiliser les plages de lignes
 Fiche matériel du projet : modules PV, onduleurs, câbles/protections et
 Constantes : MATERIAL_CATEGORY_DEFS, MATERIAL_TITLES_EN, MATERIAL_COLUMNS_EN, SHEET_ALIASES, _CELL_REF_RE, _TOKEN_SPEC, _TOKEN_RE
 - `default_material_categories()` L53-56 — Structure par défaut (utilisée à l'init de l'app et au chargement d'un
@@ -197,46 +251,46 @@ Constantes : MATERIAL_CATEGORY_DEFS, MATERIAL_TITLES_EN, MATERIAL_COLUMNS_EN, SH
   - `_parse_unary()` L216-221
   - `_parse_primary()` L223-235
   - `_parse_ident_expr()` L237-262
-- **class MaterialToolsMixin** L265-693
-  - `_build_side_panel_material()` L270-332
-  - `_make_scrollable_grid(parent)` L334-375 — Zone avec ascenseurs vertical + horizontal contenant une grille de widgets.
-  - `_build_material_grid_header(inner, columns)` L377-389
-  - `_rebuild_material_grid_rows(key)` L395-423
-  - `_rebuild_all_material_grids()` L425-428
-  - `_select_material_row(key, row_idx)` L430-436
-  - `_add_material_row(key)` L438-442
-  - `_delete_material_row(key)` L444-453
-  - `_on_material_cell_focus_in(key, row_idx, col_idx)` L459-467 — Au clic sur une cellule : affiche la formule brute (pas le résultat) pour éditio…
-  - `_on_material_cell_commit(key, row_idx, col_idx)` L469-478
-  - `_on_material_cell_return(key, row_idx, col_idx)` L480-488 — Entrée : valide la cellule et passe à la ligne suivante (comme un tableur).
-  - `_get_material_global_vars()` L494-523 — Variables globales du projet utilisables dans une formule
-  - `_compute_material_formulas()` L529-646 — Calcule toutes les cellules-formules de la fiche matériel.
-  - `_format_computed_value(value)` L649-654
-  - `_refresh_material_trees()` L656-693 — Point d'entrée public (nom conservé : appelé par project_io.py après
+- **class MaterialToolsMixin** L265-694
+  - `_build_side_panel_material()` L270-333
+  - `_make_scrollable_grid(parent)` L335-376 — Zone avec ascenseurs vertical + horizontal contenant une grille de widgets.
+  - `_build_material_grid_header(inner, columns)` L378-390
+  - `_rebuild_material_grid_rows(key)` L396-424
+  - `_rebuild_all_material_grids()` L426-429
+  - `_select_material_row(key, row_idx)` L431-437
+  - `_add_material_row(key)` L439-443
+  - `_delete_material_row(key)` L445-454
+  - `_on_material_cell_focus_in(key, row_idx, col_idx)` L460-468 — Au clic sur une cellule : affiche la formule brute (pas le résultat) pour éditio…
+  - `_on_material_cell_commit(key, row_idx, col_idx)` L470-479
+  - `_on_material_cell_return(key, row_idx, col_idx)` L481-489 — Entrée : valide la cellule et passe à la ligne suivante (comme un tableur).
+  - `_get_material_global_vars()` L495-524 — Variables globales du projet utilisables dans une formule
+  - `_compute_material_formulas()` L530-647 — Calcule toutes les cellules-formules de la fiche matériel.
+  - `_format_computed_value(value)` L650-655
+  - `_refresh_material_trees()` L657-694 — Point d'entrée public (nom conservé : appelé par project_io.py après
 
-### mixins/notes_tools.py (348 lignes)
+### mixins/notes_tools.py (351 lignes)
 Cabling workspace: route inventory, DC voltage-drop estimate and project notes.
 Imports internes : project_validation
 Constantes : STANDARD_DC_SECTIONS
 - `calculate_dc_cable_size(current_a, voltage_v, length_m, resistivity, target_drop_pct)` L13-29 — Estimate a two-conductor DC circuit from one-way cable length.
-- **class NotesToolsMixin** L32-348
+- **class NotesToolsMixin** L32-351
   - `_init_notes_state()` L33-42
-  - `_build_tab_notes_tools()` L44-83
-  - `_build_side_panel_notes()` L85-175
-  - `_capture_cable_inputs()` L177-186 — Store valid edits so tab switches and project saves keep the current input.
-  - `_compute_cable_size()` L188-201
-  - `_on_notes_changed(event)` L203-207
-  - `_refresh_notes()` L209-218
-  - `_refresh_cabling_paths()` L220-233
-  - `_invalidate_cable_routes()` L235-240
-  - `_on_cable_path_tree_selected(event)` L242-251
-  - `_refresh_cable_route_table(summary)` L253-284
-  - `_on_cable_route_selected(event)` L286-289
-  - `_calculate_and_show_cable_routes()` L291-296
-  - `_hide_cable_routes()` L298-300
-  - `_on_click_trace_cables()` L302-307 — Retained for old callbacks; the new toolbar uses the route inventory.
-  - `_use_longest_cable_route()` L309-319
-  - `_export_cable_routes_csv()` L321-348
+  - `_build_tab_notes_tools()` L44-84
+  - `_build_side_panel_notes()` L86-176
+  - `_capture_cable_inputs()` L178-187 — Store valid edits so tab switches and project saves keep the current input.
+  - `_compute_cable_size()` L189-202
+  - `_on_notes_changed(event)` L204-208
+  - `_refresh_notes()` L210-219
+  - `_refresh_cabling_paths()` L221-234
+  - `_invalidate_cable_routes()` L236-241
+  - `_on_cable_path_tree_selected(event)` L243-252
+  - `_refresh_cable_route_table(summary)` L254-285
+  - `_on_cable_route_selected(event)` L287-290
+  - `_calculate_and_show_cable_routes()` L292-299
+  - `_hide_cable_routes()` L301-303
+  - `_on_click_trace_cables()` L305-310 — Retained for old callbacks; the new toolbar uses the route inventory.
+  - `_use_longest_cable_route()` L312-322
+  - `_export_cable_routes_csv()` L324-351
 
 ### mixins/paths_tools.py (387 lignes)
 Outils de tracage des chemins/polygones de cablage et mesures de distance.
@@ -268,69 +322,82 @@ Outils de tracage des chemins/polygones de cablage et mesures de distance.
   - `_on_canvas_motion(event)` L327-378
   - `_on_escape_key(event)` L380-387
 
-### mixins/project_integrity.py (152 lignes)
+### mixins/project_integrity.py (166 lignes)
 Keep equipment, diagrams and saved simulation provenance consistent.
 Imports internes : detailed_electrical, energy_economics, project_validation
 Constantes : EXTRA_FIELDS
-- **class ProjectIntegrityMixin** L15-152
-  - `_init_energy_state()` L16-26
-  - `_project_snapshot()` L28-37
-  - `_sync_module_power()` L39-55
-  - `_read_shadow_params_from_entries(show_errors)` L57-60
-  - `_prepare_project_save()` L62-68
-  - `_load_energy_state(data)` L70-86
-  - `_energy_signature()` L88-100
-  - `_require_current_energy()` L102-106
-  - `draw_grid()` L108-118
-  - `_show_electrical_audit()` L120-152
+- **class ProjectIntegrityMixin** L15-166
+  - `_init_energy_state()` L16-27
+  - `_project_snapshot()` L29-38
+  - `_sync_module_power()` L40-56
+  - `_read_shadow_params_from_entries(show_errors)` L58-61
+  - `_prepare_project_save()` L63-70
+  - `_load_energy_state(data)` L72-99
+  - `_energy_signature()` L101-114
+  - `_require_current_energy()` L116-120
+  - `draw_grid()` L122-132
+  - `_show_electrical_audit()` L134-166
 
-### mixins/project_io.py (515 lignes) ⚠ GROS FICHIER : ne pas lire en entier, utiliser les plages de lignes
+### mixins/project_io.py (516 lignes) ⚠ GROS FICHIER : ne pas lire en entier, utiliser les plages de lignes
 Sauvegarde/chargement du projet JSON et exports (CSV, JPG).
 Imports internes : mixins.material_tools, mixins.spreadsheet_tools, project_validation
-- **class ProjectIOMixin** L24-515
+- **class ProjectIOMixin** L24-516
   - `save_project(silent)` L25-142
   - `_on_ctrl_s(event)` L144-146
   - `_auto_save()` L148-154
   - `_flash_autosave_notice()` L156-160 — Affiche brièvement une confirmation discrète de sauvegarde automatique.
   - `import_project()` L162-169
-  - `_load_project_file(filepath)` L171-433
-  - `export_csv()` L435-476
-  - `export_jpg_final(scale)` L479-515 — Capture le Canvas Tkinter et l'exporte directement en image JPG Ultra HD.
+  - `_load_project_file(filepath)` L171-434
+  - `export_csv()` L436-477
+  - `export_jpg_final(scale)` L480-516 — Capture le Canvas Tkinter et l'exporte directement en image JPG Ultra HD.
+
+### mixins/project_workspace.py (96 lignes)
+Project setup, embedded BESS comparison and report entry point.
+Imports internes : energy_charts, engineering_report
+- **class ProjectWorkspaceMixin** L7-96
+  - `_build_tab_file_tools()` L8-11
+  - `_show_project_configuration()` L13-28
+  - `_open_equipment_configuration()` L30-31
+  - `_show_grid_configuration()` L33-44
+  - `_install_energy_workspace()` L46-60
+  - `_refresh_energy_workspace()` L62-80
+  - `_export_engineering_report()` L82-89
+  - `_calculate_self_consumption()` L91-96
 
 ### mixins/responsive_ui.py (211 lignes)
 Single-row ribbon with accessible overflow, no whole-window scrollbars.
 - **class ResponsiveUIMixin** L5-211
   - `_on_ribbon_tab_changed(event)` L6-9
   - `_build_root_scroller()` L11-14
-  - `_install_responsive_ui()` L16-43
-  - `_paginate_shadow_panel()` L45-46
-  - `_install_compact_zoom()` L48-63
-  - `_responsive_tab_changed(event)` L65-68
-  - `_schedule_responsive(event)` L70-73
-  - `_layout_responsive()` L75-121
-  - `_fit_roof_to_window()` L123-125
-  - `_apply_roof_fit()` L127-134
-  - `_zoom_button_change(factor)` L136-138
-  - `_zoom_at_pointer(event, delta)` L140-142
-  - `_toggle_responsive_panel()` L144-148
+  - `_install_responsive_ui()` L16-36
+  - `_paginate_shadow_panel()` L38-39
+  - `_install_compact_zoom()` L41-56
+  - `_responsive_tab_changed(event)` L58-59
+  - `_fit_tab_labels()` L61-74
+  - `_schedule_responsive(event)` L76-79
+  - `_layout_responsive()` L81-127
+  - `_fit_roof_to_window()` L129-131
+  - `_apply_roof_fit()` L133-140
+  - `_zoom_button_change(factor)` L142-144
+  - `_zoom_at_pointer(event, delta)` L146-148
   - `_add_overflow_item(menu, w)` L150-158
   - `_show_toolbar_fields(tab)` L160-200
   - `_fit_dialog(window, width, height)` L202-206
   - `_cap_mapped_dialog(event)` L208-211
 
-### mixins/self_consumption_ui.py (346 lignes)
+### mixins/self_consumption_ui.py (350 lignes)
 Onglet Volfrigo: bilancio orario produzione FV / consumo frigorifero.
 Imports internes : battery_dispatch, energy_economics, self_consumption
-- **class SelfConsumptionMixin** L15-346
+- **class SelfConsumptionMixin** L15-350
   - `_build_self_consumption_tab()` L16-42
   - `_show_energy_settings()` L44-45
   - `_load_consumption_excel()` L47-62
-  - `_show_energy_economics()` L64-148
-  - `_import_historical_weather()` L150-159
-  - `_download_historical_weather()` L161-195
-  - `_calculate_self_consumption()` L197-246
-  - `_show_self_consumption_result()` L248-332
-  - `_export_self_consumption()` L334-346
+  - `_show_energy_economics()` L64-152
+  - `_import_historical_weather()` L154-163
+  - `_download_historical_weather()` L165-199
+  - `_calculate_self_consumption()` L201-250
+  - `_show_self_consumption_result()` L252-336
+  - `_export_self_consumption()` L338-350
 
 ### mixins/shadow_energy.py (231 lignes)
 Position solaire, irradiance ciel clair, puissance/energie des panneaux, agregation par string.
@@ -511,21 +578,21 @@ Imports internes : project_validation
   - `update_dimensions()` L421-431
   - `_find_zone_for_panel(coord)` L433-444
 
-### mixins/two_pole_cables.py (107 lignes)
+### mixins/two_pole_cables.py (119 lignes)
 Both string terminals, using the supplied router and verified saved routes.
-Imports internes : mixins.notes_tools, project_validation, single_line_516
-- **class TwoPoleCablesMixin** L7-107
-  - `_route_signature()` L8-15
-  - `get_two_pole_route(sid)` L17-24
-  - `_calculate_two_pole_route(sid)` L26-56
-  - `compute_cable_length_mm(sid)` L58-60
-  - `compute_all_cable_routes()` L62-81
-  - `_draw_cable_network_routes(zoom)` L83-107
+Imports internes : geometry_layout, mixins.notes_tools, project_validation, single_line_516
+- **class TwoPoleCablesMixin** L8-119
+  - `_route_signature()` L9-17
+  - `get_two_pole_route(sid)` L19-26
+  - `_calculate_two_pole_route(sid)` L28-67
+  - `compute_cable_length_mm(sid)` L69-71
+  - `compute_all_cable_routes()` L73-92
+  - `_draw_cable_network_routes(zoom)` L94-119
 
-### mixins/ui_builders.py (699 lignes) ⚠ GROS FICHIER : ne pas lire en entier, utiliser les plages de lignes
+### mixins/ui_builders.py (703 lignes) ⚠ GROS FICHIER : ne pas lire en entier, utiliser les plages de lignes
 Construction de l'interface ruban (onglets, panneaux lateraux).
 Constantes : QUICK_START_GUIDE, FORMULA_GUIDE, TECHNICAL_GUIDE
-- **class UIBuildersMixin** L93-694
+- **class UIBuildersMixin** L93-698
   - `_load_ui_preferences()` L94-111
   - `_show_ui_preferences()` L113-154
   - `_build_root_scroller()` L156-176 — One outer scrollbar pair for the complete toolbar and work area.
@@ -539,44 +606,44 @@ Constantes : QUICK_START_GUIDE, FORMULA_GUIDE, TECHNICAL_GUIDE
   - `_get_image_resample_filter()` L258-263 — Retourne un filtre de redimensionnement compatible avec Pillow.
   - `_build_ribbon_ui()` L269-307
   - `_build_tab_file_tools()` L313-348
-  - `_build_tab_roof_tools()` L354-422
-  - `_build_tab_layout_tools()` L428-514
-  - `_build_tab_stringing_tools()` L520-559
-  - `_show_string_settings()` L561-578
-  - `_build_tab_equipment_tools()` L584-630
-  - `_show_mppt_settings()` L632-654
-  - `_build_tab_material_tools()` L660-694
+  - `_build_tab_roof_tools()` L354-426
+  - `_build_tab_layout_tools()` L432-518
+  - `_build_tab_stringing_tools()` L524-563
+  - `_show_string_settings()` L565-582
+  - `_build_tab_equipment_tools()` L588-634
+  - `_show_mppt_settings()` L636-658
+  - `_build_tab_material_tools()` L664-698
 
-### mixins/workspace_improvements.py (411 lignes)
+### mixins/workspace_improvements.py (408 lignes)
 Home, recent projects, compact layout controls and universal CSV preview.
 Imports internes : home_reference
-- **class WorkspaceImprovementsMixin** L17-411
+- **class WorkspaceImprovementsMixin** L17-408
   - `_build_tab_file_tools()` L18-30
   - `_build_tab_layout_tools()` L32-79
   - `_show_panel_configuration()` L81-107
-  - `_install_home()` L109-190
-  - `_install_energy_workspace()` L192-215
-  - `_refresh_energy_workspace()` L217-234
-  - `_energy_results_current()` L236-238
-  - `_calculate_self_consumption()` L240-243
-  - `_on_ribbon_tab_changed(event)` L245-255
-  - `_show_home()` L257-260
-  - `_show_help(page)` L262-265
-  - `_recent_path()` L267-268
-  - `_read_recent_projects()` L270-275
-  - `_remember_recent_project(path)` L277-291
-  - `_refresh_recent_projects()` L293-301
-  - `_open_recent_selection()` L303-310
-  - `on_left_press(event)` L312-326
-  - `on_left_drag(event)` L328-336
-  - `on_left_release(event)` L338-349
-  - `_export_with_csv_preview(callback, initialfile)` L351-365 — Run the existing CSV writer against a private temporary path, then preview and s…
-  - `_preview_csv_file(staged, initialfile)` L367-405
-  - `export_csv()` L407-407
-  - `export_mppt_csv()` L408-408
-  - `_export_cable_routes_csv()` L409-409
-  - `_export_spreadsheet_csv()` L410-410
-  - `_export_self_consumption()` L411-411
+  - `_install_home()` L109-187
+  - `_install_energy_workspace()` L189-212
+  - `_refresh_energy_workspace()` L214-231
+  - `_energy_results_current()` L233-235
+  - `_calculate_self_consumption()` L237-240
+  - `_on_ribbon_tab_changed(event)` L242-252
+  - `_show_home()` L254-257
+  - `_show_help(page)` L259-262
+  - `_recent_path()` L264-265
+  - `_read_recent_projects()` L267-272
+  - `_remember_recent_project(path)` L274-288
+  - `_refresh_recent_projects()` L290-298
+  - `_open_recent_selection()` L300-307
+  - `on_left_press(event)` L309-323
+  - `on_left_drag(event)` L325-333
+  - `on_left_release(event)` L335-346
+  - `_export_with_csv_preview(callback, initialfile)` L348-362 — Run the existing CSV writer against a private temporary path, then preview and s…
+  - `_preview_csv_file(staged, initialfile)` L364-402
+  - `export_csv()` L404-404
+  - `export_mppt_csv()` L405-405
+  - `_export_cable_routes_csv()` L406-406
+  - `_export_spreadsheet_csv()` L407-407
+  - `_export_self_consumption()` L408-408
 
 ### mixins/zone_tools.py (675 lignes) ⚠ GROS FICHIER : ne pas lire en entier, utiliser les plages de lignes
 Gestion des zones de toiture, de l'echelle et de la zone principale.
@@ -630,23 +697,40 @@ Profili orari e bilancio FV/utenza. Nessuna batteria nel calcolo.
 - `balance(profile, pv_kwh, export_limit_kw)` L219-245
 - `write_hourly_csv(path, result)` L248-253
 
-### single_line_516.py (258 lignes)
+### single_line_516.py (262 lignes)
 Preliminary AC/DC single-line drawing derived from the active PV project.
 Imports internes : project_validation
 Constantes : INVERTER, BATTERY
-- `route_is_current(data, sid)` L17-47
-- `build_model(data, batteries)` L50-101
-- `write_svg(model, path, language)` L104-258 — One drawing with site one-line and exact string-to-MPPT schedule.
+- `route_is_current(data, sid)` L18-51
+- `build_model(data, batteries)` L54-105
+- `write_svg(model, path, language)` L108-262 — One drawing with site one-line and exact string-to-MPPT schedule.
 
-### tests/test_detailed_electrical.py (62 lignes)
+### tests/test_detailed_electrical.py (63 lignes)
 Ensure the exported physical connections follow the active project.
 Imports internes : detailed_electrical
 Constantes : PROJECT
-- **class DetailedElectricalTests** L14-59
+- **class DetailedElectricalTests** L14-60
   - `setUp()` L15-16
-  - `test_project_mppt_two_poles_and_dc_battery_ports()` L18-30
-  - `test_two_cabinets_do_not_invent_parallel_connection()` L32-39
-  - `test_stale_design_ratings_and_valid_vector_export()` L41-59
+  - `test_project_mppt_two_poles_and_dc_battery_ports()` L18-31
+  - `test_two_cabinets_do_not_invent_parallel_connection()` L33-40
+  - `test_stale_design_ratings_and_valid_vector_export()` L42-60
+
+### tests/test_installation.py (77 lignes)
+Imports internes : energy_economics, geometry_layout, mixins.cable_network, mixins.installation_geometry, mixins.paths_tools, mixins.shadow_geometry, single_line_516
+- **class Geometry** L8-9
+- `surface(x1, x2, h)` L11-12
+- **class InstallationTests** L14-59
+  - `test_bridge_keeps_upstream_height_and_counts_single_step()` L15-22
+  - `test_bridge_across_several_polyline_segments()` L24-27
+  - `test_missing_and_conflicting_height_rejected()` L29-31
+  - `test_no_shadow_height_fallback()` L33-35
+  - `test_rotated_grid_containment_adjacency_and_area()` L37-50
+  - `test_panel_centre_matches_rotated_corners()` L52-56
+  - `test_legacy_cable_plan_is_not_current()` L58-59
+- **class PeriodTests** L61-66
+  - `test_payback_requires_complete_anniversary_period()` L62-66
+- **class TrayProjectionTests** L68-77
+  - `test_two_projections_on_same_tray_use_direct_interval()` L69-77
 
 ### tests/test_regressions.py (121 lignes)
 Imports internes : battery_dispatch, energy_economics, mixins.spreadsheet_interactions, project_validation, self_consumption, single_line_516
@@ -670,3 +754,7 @@ Imports internes : home_reference, mixins.shadow_energy
 - **class TechnicalReferenceTests** L9-23
   - `test_dated_solar_position_uses_leap_year_when_requested()` L10-14
   - `test_all_home_equations_render()` L16-23
+
+### user_guide.py (125 lignes)
+Expanded desktop workflow adapted from the supplied earlier tutorial.
+Constantes : WORKFLOWS

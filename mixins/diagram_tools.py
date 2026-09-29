@@ -42,25 +42,12 @@ class DiagramToolsMixin:
             self.tab_diagram, text='➕ Custom element', command=self._add_custom_diagram_node
         ).pack(side=tk.LEFT, padx=5)
 
-        site_btn=ttk.Menubutton(self.tab_diagram,text='Site wiring')
-        site_menu=tk.Menu(site_btn,tearoff=False)
-        site_menu.add_command(label='Detailed wiring editor…',command=self._show_detailed_electrical_editor)
-        site_menu.add_command(label='Export detailed one-line SVG…',command=self._export_detailed_electrical_svg)
-        site_btn.configure(menu=site_menu);site_btn.pack(side=tk.LEFT,padx=3)
         self.diagram_link_menu_button = ttk.Menubutton(self.tab_diagram, text='🔗 Custom links')
         links_menu = tk.Menu(self.diagram_link_menu_button, tearoff=0)
         for style, (label, _dash) in LINK_STYLES.items():
             links_menu.add_command(label=label, command=lambda s=style: self._toggle_diagram_link_mode(s))
         self.diagram_link_menu_button['menu'] = links_menu
         self.diagram_link_menu_button.pack(side=tk.LEFT, padx=5)
-
-        specs_btn = ttk.Menubutton(self.tab_diagram, text='⚡ Electrical data')
-        specs_menu = tk.Menu(specs_btn, tearoff=0)
-        specs_menu.add_command(label='Validation / missing electrical ratings', command=self._show_electrical_audit)
-        specs_menu.add_command(label='Edit module / inverter specifications', command=self._edit_diagram_electrical_specs)
-        specs_menu.add_command(label='Show / hide electrical values', command=self._toggle_diagram_electrical)
-        specs_btn['menu'] = specs_menu
-        specs_btn.pack(side=tk.LEFT, padx=5)
 
         ttk.Button(
             self.tab_diagram, text='🗑️ Delete selected element', command=self._delete_selected_diagram_node
@@ -79,7 +66,7 @@ class DiagramToolsMixin:
 
         ttk.Label(
             self.tab_diagram,
-            text='Drag elements  |  Choose a link style, then click two elements',
+            text='Shift/Ctrl-click: multi-select; drag selection  |  Choose a link style, then click two elements',
             font=("Arial", 8), foreground="#555555"
         ).pack(side=tk.LEFT, padx=10)
 
@@ -94,7 +81,7 @@ class DiagramToolsMixin:
             self.side_panel_diagram, text='Diagram elements', font=("Arial", 10, "bold")
         ).pack(pady=5)
 
-        self.lst_diagram_nodes = tk.Listbox(self.side_panel_diagram, selectmode=tk.SINGLE, height=24)
+        self.lst_diagram_nodes = tk.Listbox(self.side_panel_diagram, selectmode=tk.EXTENDED, exportselection=False, height=24)
         self.lst_diagram_nodes.pack(fill=tk.BOTH, expand=True, pady=5)
         self.lst_diagram_nodes.bind("<<ListboxSelect>>", self._on_diagram_list_select)
 
@@ -107,7 +94,7 @@ class DiagramToolsMixin:
             text="This list reflects the generated diagram. Add custom elements "
                  "(protective devices, switchboard, meter) with the toolbar, "
                  "then choose a custom link style and click two elements. "
-                 "Use Electrical data to enter module ratings and show voltages and power.",
+                 "Enter equipment values in Home > Configuration. Shift/Ctrl-click to select several elements.",
             font=("Arial", 8), foreground="#555555", justify=tk.LEFT, wraplength=240
         ).pack(pady=5, fill=tk.X)
 
@@ -155,9 +142,9 @@ class DiagramToolsMixin:
         desired_ids = set()
         new_auto_links = []
 
-        x_str, x_mppt, x_inv = 125, 400, 675
-        string_step = 105 if self.diagram_show_electrical else 55
-        mppt_step = 105 if self.diagram_show_electrical else 70
+        x_str, x_mppt, x_inv = 160, 520, 880
+        string_step = 155 if self.diagram_show_electrical else 90
+        mppt_step = 155 if self.diagram_show_electrical else 100
         y_cursor_inv = 60
 
         for block_name, block in self.blocks.items():
@@ -202,7 +189,7 @@ class DiagramToolsMixin:
             inv_node.update({"x":x_inv,"y":(block_top_y+y_cursor_mppt)/2,
                              "type": "inverter", "label": f"🔌 {block_name}"})
 
-            y_cursor_inv = y_cursor_mppt + 40
+            y_cursor_inv = y_cursor_mppt + 100
 
         # Nettoyage des noeuds auto obsolètes (plus présents dans les données actuelles)
         for node_id in list(self.diagram_nodes.keys()):
@@ -517,7 +504,7 @@ class DiagramToolsMixin:
             w, h = node_w * zoom, node_h * zoom
             x1, y1, x2, y2 = nx - w / 2, ny - h / 2, nx + w / 2, ny + h / 2
             color = NODE_COLORS.get(node.get("type"), "#607D8B")
-            is_selected = node_id == self.diagram_selected_node
+            is_selected = node_id in getattr(self, "diagram_selected_nodes", set()) or node_id == self.diagram_selected_node
             outline = "#0055FF" if is_selected else "#263238"
             width_val = 3 if is_selected else 1
             self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline=outline, width=width_val)

@@ -133,9 +133,6 @@ class WorkspaceImprovementsMixin:
         self.recent_tree.configure(yscrollcommand=scroll.set)
         guide_heading=ttk.Frame(self.home_frame);guide_heading.pack(fill=tk.X)
         ttk.Label(guide_heading,text='Guide',font=('Arial',15,'bold')).pack(side=tk.LEFT)
-        ttk.Button(guide_heading,text='Open full technical note (PDF)',
-                   command=lambda:webbrowser.open_new_tab((Path(__file__).resolve().parents[1]
-                                     /'docs/technical_note_updated.pdf').as_uri())).pack(side=tk.RIGHT)
         notebook=ttk.Notebook(self.home_frame);notebook.pack(fill=tk.BOTH,expand=True,pady=(4,0))
         self.home_guide_notebook=notebook
         for title,data in [('How it works',WORKFLOWS),('Formulas',FORMULAS)]:

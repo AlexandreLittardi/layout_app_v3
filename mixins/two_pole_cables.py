@@ -2,6 +2,7 @@
 import math
 from single_line_516 import route_is_current
 from project_validation import number
+from geometry_layout import route_elevation
 from mixins.notes_tools import calculate_dc_cable_size
 
 class TwoPoleCablesMixin:
@@ -10,7 +11,8 @@ class TwoPoleCablesMixin:
                 'assignments':self.string_mppt_assignment.copy(),
                 'inverter_positions':{k:[v['x'],v['y']] for k,v in self.inverter_positions.items()},
                 'cable_paths':[{'id':p.get('id'),'points':[list(q) for q in p.get('points',[])]} for p in self.cable_paths],
-                'roof_zones':self.roof_zones,'px_per_mm':self.px_per_mm,
+                'roof_zones':self.roof_zones,'roof_polygons':self.roof_polygons,
+                'routing_model': 'installation_surfaces_v1', 'px_per_mm':self.px_per_mm,
                 'panel_width_mm':self.panel_width_mm,'panel_height_mm':self.panel_height_mm,
                 'routing_settings':self.routing_settings.copy()}
 
@@ -35,14 +37,23 @@ class TwoPoleCablesMixin:
             length,kind,points=super().compute_cable_route(sid,terminal=end)
             if length is None:return None
             idx=self._get_panel_zone_idx(coords[end])
-            z=self.roof_zones[idx] if idx is not None else {}
-            height=number(z.get('z_mm'))
-            if height is None:return None  # no invented vertical length
-            drop=abs(height/1000-self.routing_settings['inverter_height_m'])
-            reserve=self.routing_settings['reserve_per_pole_m']
-            record[name]={'length_m':length/1000+drop+reserve,'roof_points_px':points,'ground_points_px':[],
-                          'vertical_drop_m':drop,'terminal_reserve_m':reserve,'method':kind,
-                          'module_id':self.panels[coords[end]],'zone':idx+1 if idx is not None else None}
+            surfaces=[]
+            for z in self.roof_zones:
+                x1,x2=sorted((z['x1'],z['x2']));y1,y2=sorted((z['y1'],z['y2']))
+                surfaces.append({'points':[(x1,y1),(x2,y1),(x2,y2),(x1,y2)],
+                                 'height_m':z.get('installation_height_m')})
+            surfaces.extend({'points':[tuple(q) for q in p['points']],
+                             'height_m':p.get('installation_height_m')} for p in self.roof_polygons)
+            try:
+                dimensions=route_elevation(points,surfaces,self.px_per_mm,
+                    self.routing_settings['inverter_height_m'],self.routing_settings['reserve_per_pole_m'],
+                    self.routing_settings.get('bridge_gap_m',0.))
+            except ValueError as exc:
+                self._last_route_error=str(exc)
+                return None
+            record[name]={**dimensions,'roof_points_px':points,'ground_points_px':[],
+                          'method':kind,'module_id':self.panels[coords[end]],
+                          'zone':idx+1 if idx is not None else None}
         record['loop_length_m']=record['terminal_A']['length_m']+record['terminal_B']['length_m']
         rows=self.material_categories.get('modules',{}).get('rows',[])
         spec=rows[0] if len(rows)==1 else {}
@@ -91,11 +102,12 @@ class TwoPoleCablesMixin:
             if len(pts)>1:self.canvas.create_line(*[c*zoom for p in pts for c in p],fill='#7B1FA2',width=2,dash=(5,3))
         selected=getattr(self,'selected_cable_route',None)
         x=self.canvas.canvasx(14);y=self.canvas.canvasy(14)
-        self.canvas.create_rectangle(x,y,x+256,y+62,fill='#F7FBFF',outline='#66849C')
+        self.canvas.create_rectangle(x,y,x+360,y+88,fill='#F7FBFF',outline='#66849C')
         self.canvas.create_line(x+9,y+18,x+34,y+18,fill='#E65100',width=3)
-        self.canvas.create_text(x+42,y+18,anchor='w',text='Pole A · solid, inverter colour',fill='#18334A')
+        self.canvas.create_text(x+42,y+18,anchor='w',text='A: first module to inverter (solid, block colour)',fill='#18334A')
         self.canvas.create_line(x+9,y+41,x+34,y+41,fill='#7B1FA2',width=2,dash=(5,3))
-        self.canvas.create_text(x+42,y+41,anchor='w',text='Pole B · dashed; total = A + B',fill='#18334A')
+        self.canvas.create_text(x+42,y+41,anchor='w',text='B: last module to inverter (purple dashed)',fill='#18334A')
+        self.canvas.create_text(x+9,y+68,anchor='w',text='Inventory = A + B, including height steps and reserves',fill='#18334A')
         if selected in self.cable_network_routes:
             route=self.cable_network_routes[selected]
             for suffix,key in [('A','points'),('B','points_b')]:

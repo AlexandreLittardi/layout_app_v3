@@ -11,6 +11,9 @@ try:
 except ImportError:
     HAS_PIL = False
 
+from mixins.installation_geometry import InstallationGeometryMixin
+from mixins.project_workspace import ProjectWorkspaceMixin
+from mixins.editor_interactions import EditorInteractionsMixin
 from mixins.project_integrity import ProjectIntegrityMixin
 from mixins.workspace_improvements import WorkspaceImprovementsMixin
 from mixins.spreadsheet_interactions import SpreadsheetInteractionsMixin
@@ -37,6 +40,9 @@ from mixins.spreadsheet_tools import SpreadsheetToolsMixin
 
 
 class PVLayoutRibbonApp(
+    ProjectWorkspaceMixin,
+    EditorInteractionsMixin,
+    InstallationGeometryMixin,
     WorkspaceImprovementsMixin,
     DetailedElectricalUIMixin,
     SpreadsheetInteractionsMixin,
@@ -62,7 +68,7 @@ class PVLayoutRibbonApp(
 ):
     def __init__(self, root):
         self.root = root
-        self.root.title('PV Layout and Stringing — R09 · 28 September 2026')
+        self.root.title('PV Layout and Stringing — R10 · 29 September 2026')
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
         self.root.minsize(min(480, screen_width), min(320, screen_height))

@@ -759,17 +759,8 @@ class CanvasGridMixin:
                         else:
                             p1, p2 = measure
                             label = ((p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2 - 12 / zoom)
-                        mx1, my1 = p1[0] * zoom, p1[1] * zoom
-                        mx2, my2 = p2[0] * zoom, p2[1] * zoom
-                        dist_px = math.hypot(p2[0] - p1[0], p2[1] - p1[1])
-                        dist_mm = dist_px / self.px_per_mm
-                        dist_str = f"{dist_mm / 1000:.2f} m ({dist_mm:.0f} mm)"
-
-                        self.canvas.create_line(mx1, my1, mx2, my2, fill="#D32F2F", width=2, dash=(6, 3))
-                        self.canvas.create_oval(mx1-4, my1-4, mx1+4, my1+4, fill="#D32F2F", outline="black")
-                        self.canvas.create_oval(mx2-4, my2-4, mx2+4, my2+4, fill="#D32F2F", outline="black")
-                        self.canvas.create_text(label[0] * zoom, label[1] * zoom,
-                                                text=dist_str, fill="#D32F2F", font=("Arial", 10, "bold"))
+                        self._draw_dimension(measure if isinstance(measure, dict) else
+                                             {'p1':p1,'p2':p2,'label':label}, zoom)
 
                 # Traçage des zones
                 for idx, z in enumerate(self.roof_zones):
@@ -960,6 +951,8 @@ class CanvasGridMixin:
                         for r in range(rows):
                             for c in range(cols):
                                 coord = (row_base + r, c)
+                                if not self._valid_zone_cell(zone, r, c):
+                                    continue
                                 if coord not in self.panels:
                                     continue
                                 cx1 = grid_x1 + c * pw_px
@@ -967,7 +960,7 @@ class CanvasGridMixin:
                                 cx2, cy2 = cx1 + pw_px, cy1 + ph_px
                                 corners = self._zone_rotate_rect(zone, cx1, cy1, cx2, cy2)
                                 flat = [v for pt in corners for v in pt]
-                                center_x, center_y = (cx1 + cx2) / 2, (cy1 + cy2) / 2
+                                center_x, center_y = (sum(p[0] for p in corners)/4, sum(p[1] for p in corners)/4)
 
                                 pct = shadow_pct.get(coord, 0.0)
                                 self.canvas.create_polygon(*flat, fill="#FFF59D", outline="#78909C", width=1)
@@ -1083,17 +1076,17 @@ class CanvasGridMixin:
                 for r in range(rows):
                     for c in range(cols):
                         coord = (row_base + r, c)
+                        if not self._valid_zone_cell(zone, r, c):
+                            continue
                         cx1 = grid_x1 + c * pw_px
                         cy1 = grid_y1 + r * ph_px
                         cx2 = cx1 + pw_px
                         cy2 = cy1 + ph_px
 
-                        # Rotation indépendante de CE panneau autour de son
-                        # propre centre (le centre ne bouge pas : seuls les
-                        # coins du carré pivotent).
+                        # Rotate the entire panel lattice about the installation zone centre.
                         corners = self._zone_rotate_rect(zone, cx1, cy1, cx2, cy2)
                         flat = [v for pt in corners for v in pt]
-                        center_x, center_y = (cx1 + cx2) / 2, (cy1 + cy2) / 2
+                        center_x, center_y = (sum(p[0] for p in corners)/4, sum(p[1] for p in corners)/4)
                         cell_centers[coord] = (center_x, center_y)
                         angle_disp = zone.get("angle_deg", 0.0)
 

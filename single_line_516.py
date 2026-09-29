@@ -6,6 +6,7 @@ certificate is asserted by this drawing.
 """
 
 from collections import Counter, defaultdict
+import json
 from html import escape
 from pathlib import Path
 import xml.etree.ElementTree as ET
@@ -18,6 +19,9 @@ def route_is_current(data, sid):
     plan = data.get('electrical_route_plan_3d') or {}
     sig = plan.get('source_signature') or {}
     rec = (plan.get('routes') or {}).get(sid)
+    if sig.get('routing_model') != 'installation_surfaces_v1':return False
+    if json.dumps(sig.get('roof_polygons'),sort_keys=True) != json.dumps(data.get('roof_polygons',[]),sort_keys=True):return False
+    if sig.get('routing_settings') != data.get('routing_settings',sig.get('routing_settings')):return False
     if not rec or not sig:
         return False
     if sig.get('strings', {}).get(sid) != data.get('strings', {}).get(sid):

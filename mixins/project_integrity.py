@@ -10,7 +10,7 @@ from detailed_electrical import default_design, normalise_design
 EXTRA_FIELDS = ('hourly_consumption_profile','hourly_pv_kwh','hourly_weather_profile',
                 'self_consumption_summary','bess_summary','two_bess_summary',
                 'economic_settings','grid_connection_settings','electrical_route_plan_3d',
-                'electrical_checks','routing_settings','energy_source_signature','electrical_design')
+                'electrical_checks','routing_settings','energy_source_signature','electrical_design','energy_input_settings')
 
 class ProjectIntegrityMixin:
     def _init_energy_state(self):
@@ -22,12 +22,13 @@ class ProjectIntegrityMixin:
         self.electrical_route_plan_3d={};self.electrical_checks={}
         self.electrical_design=default_design()
         self.routing_settings={'inverter_height_m':0.,'reserve_per_pole_m':2.}
+        self.energy_input_settings={}
         self.energy_source_signature=None
         self._diagram_signature=None
 
     def _project_snapshot(self):
         data={name:getattr(self,name) for name in (
-            'project_name','blocks','string_mppt_assignment','inverter_positions','roof_zones','cable_paths',
+            'project_name','roof_polygons','routing_settings','blocks','string_mppt_assignment','inverter_positions','roof_zones','cable_paths',
             'panel_width_mm','panel_height_mm','panel_pmax_w','panel_efficiency_pct','px_per_mm',
             'material_categories','diagram_nodes','diagram_links','electrical_checks')}
         data.update(panels={f'{r},{c}':v for (r,c),v in self.panels.items()},
@@ -65,6 +66,7 @@ class ProjectIntegrityMixin:
         self.panels={tuple(map(int,k.split(','))):v for k,v in data['panels'].items()}
         self.panel_blocks={tuple(map(int,k.split(','))):v for k,v in data['panel_blocks'].items()}
         self.diagram_nodes=data['diagram_nodes'];self.diagram_links=data['diagram_links']
+        self.energy_input_settings={'ac_factor':self.self_ac_entry.get(), 'bess':{k:e.get() for k,e in self.bess_entries.items()}}
         return {k:getattr(self,k) for k in EXTRA_FIELDS}
 
     def _load_energy_state(self,data):
@@ -89,8 +91,8 @@ class ProjectIntegrityMixin:
         self.grid_connection_settings['export_limit_kw']=limit
         self._sync_module_power()
         for key,entry in self.bess_entries.items():
-            entry.delete(0,tk.END);entry.insert(0,str(self.bess_summary.get('battery_settings',{}).get(key,self._bess_defaults[key])))
-        self.self_ac_entry.delete(0,tk.END);self.self_ac_entry.insert(0,str(self.self_consumption_summary.get('ac_factor',.9)))
+            entry.delete(0,tk.END);entry.insert(0,str(self.energy_input_settings.get('bess',{}).get(key,self.bess_summary.get('battery_settings',{}).get(key,self._bess_defaults[key]))))
+        self.self_ac_entry.delete(0,tk.END);self.self_ac_entry.insert(0,str(self.energy_input_settings.get('ac_factor',self.self_consumption_summary.get('ac_factor',.9))))
         if self.hourly_pv_kwh and not self.energy_source_signature:
             # Legacy curves have no reliable geometry provenance. Never label them current.
             self.self_status.configure(text='Saved results: recalculate to validate against this layout.')
@@ -108,6 +110,7 @@ class ProjectIntegrityMixin:
             keep[k]=getattr(self,k,None)
         keep['panel_orientations']={str(k):v for k,v in self.panel_orientations.items()}
         keep['ac_factor']=self.self_ac_entry.get()
+        keep['bess_inputs']={k:e.get() for k,e in self.bess_entries.items()}
         return hashlib.sha256(json.dumps(keep,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
 
     def _require_current_energy(self):

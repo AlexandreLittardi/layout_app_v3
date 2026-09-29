@@ -210,7 +210,8 @@ class ProjectIOMixin:
                 pts = [tuple(pt) for pt in p.get("points", [])]
                 self.roof_polygons.append({
                     "id": p.get("id", len(self.roof_polygons) + 1),
-                    "points": pts
+                    "points": pts,
+                    **({"installation_height_m": p["installation_height_m"]} if "installation_height_m" in p else {})
                 })
             self.distance_markers = []
             for m in data.get("distance_markers", []):
@@ -226,7 +227,7 @@ class ProjectIOMixin:
             self.measures = []
             for measure in data.get("measures", []):
                 if isinstance(measure, dict):
-                    self.measures.append({key: tuple(measure[key]) for key in ("p1", "p2", "label")})
+                    self.measures.append({**{key: tuple(measure[key]) for key in ("p1", "p2", "label")}, "axis": measure.get("axis", "aligned")})
                 elif len(measure) == 2:
                     p1, p2 = measure
                     self.measures.append({"p1": tuple(p1), "p2": tuple(p2),
